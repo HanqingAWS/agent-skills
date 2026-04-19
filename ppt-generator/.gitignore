@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.DS_Store
+# Icons downloaded from SVG Repo on demand
