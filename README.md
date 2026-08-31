@@ -10,6 +10,20 @@ Generate a single-file interactive HTML slide deck (web-based PPT) from a conver
 ### [drawio-diagram](./drawio-diagram)
 Generate any type of diagram using draw.io. Supports Mermaid, XML, and CSV formats with automatic URL generation and one-click opening. Covers flowcharts, UML, AWS architecture, ERD, org charts, and more.
 
+### [ses-expert](./ses-expert)
+Diagnose and operate Amazon SES authentication, bounce codes, configuration-set events, suppression lists, high-volume campaigns, and sender reputation recovery.
+
+Highlights:
+
+- SPF, DKIM, DMARC, custom MAIL FROM, MX, and sender verification
+- SMTP bounce-code classification and selective suppression handling
+- Configuration sets, identity notifications, SNS/SQS, Open/Click, and event deduplication
+- New-domain warm-up, high-volume send runbooks, and reputation recovery
+- Multi-project, multi-environment, and SES tenant design
+- Read-only DNS preflight script
+
+See the detailed [ses-expert README](./ses-expert/README.md) for installation, examples, script usage, and validation.
+
 ## Usage
 
 Copy the skill folder into your agent's skills directory:

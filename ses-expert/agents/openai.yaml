@@ -1,0 +1,4 @@
+interface:
+  display_name: "Amazon SES Expert"
+  short_description: "Diagnose SES authentication, bounces, events, and deliverability"
+  default_prompt: "Use $ses-expert to diagnose this Amazon SES delivery issue and propose safe next steps."
