@@ -1,264 +1,144 @@
 # Amazon SES Expert Skill
 
-`ses-expert` is a reusable AI-agent skill for diagnosing and operating Amazon
-Simple Email Service delivery workflows.
+`ses-expert` 是一个轻量、交互式的 Amazon SES Skill，适用于 Codex、Claude Code
+及其他能够执行命令和分析日志的 Agent。
 
-It was created from real production support scenarios involving:
+它不捆绑 Python、Node.js 或固定脚本。Agent 读取一个 `SKILL.md`，根据用户提供的
+截图、退信码、DNS、代码和 AWS 环境，现场生成并执行所需的 `dig`、AWS CLI、SQL、
+Shell 或日志查询。
 
-- SPF, Easy DKIM, DMARC alignment, and custom MAIL FROM;
-- sender-domain MX and sender-verification failures;
-- configuration sets, identity feedback notifications, SNS, SQS, and duplicate events;
-- missing Delivery, Open, and Click metrics;
-- suppression-list handling;
-- SMTP bounce-code diagnosis;
-- new-domain warm-up and reputation recovery;
-- large sends from tens of thousands to hundreds of thousands of recipients;
-- multiple projects, environments, configuration sets, and SES tenants.
-
-## What the skill helps with
-
-Use this skill when an agent needs to:
-
-- explain why `SPF=Pass` and `DKIM=Pass` can still produce `DMARC=Fail`;
-- troubleshoot Microsoft `550 5.7.515`;
-- distinguish invalid recipients from sender-side DNS/authentication failures;
-- interpret Gmail `550 5.7.1 unsolicited mail`;
-- diagnose GMX/WEB.DE policy, DNS, and sender-verification responses;
-- determine which suppressed addresses may safely be retried;
-- verify configuration-set event destinations and SNS/SQS processing;
-- avoid double-counting SES events;
-- design a safe staged campaign under SES sending quotas;
-- create a domain/IP reputation recovery plan;
-- decide how projects and environments should share configuration sets and queues.
-
-## Directory structure
+## 目录
 
 ```text
 ses-expert/
 ├── SKILL.md
-├── agents/
-│   └── openai.yaml
-├── references/
-│   ├── authentication-and-dns.md
-│   ├── bounce-diagnostics.md
-│   ├── bulk-send-runbook.md
-│   ├── event-publishing.md
-│   ├── multi-project-tenancy.md
-│   └── reputation-and-warming.md
-└── scripts/
-    └── check_ses_dns.sh
+└── README.md
 ```
 
-`SKILL.md` is intentionally concise. It routes the agent to the relevant reference
-instead of loading every SES topic into context.
+## 能处理的问题
 
-## Installation
+- SPF、Easy DKIM、DMARC 对齐和自定义 MAIL FROM
+- 发件域 MX、邮箱别名和 sender verification
+- Microsoft `550 5.7.515`
+- Gmail `550 5.7.1 unsolicited mail`
+- GMX/WEB.DE policy、DNS 和限流退信
+- 无效邮箱、邮箱已满、临时退信和永久退信
+- SES 抑制列表的分类与选择性解除
+- 配置集、身份反馈通知、SNS/SQS 和重复事件
+- Delivery/Open/Click 缺失或统计错误
+- SES 滚动24小时额度和大批量发送计划
+- 新域名预热、信誉恢复和服务商分流
+- 多项目、多环境、配置集和 SES Tenant 设计
 
-Copy the complete `ses-expert` directory into the skills directory used by your agent.
+## 安装
 
-For Codex:
+### Codex
 
 ```bash
 cp -R ses-expert "${CODEX_HOME:-$HOME/.codex}/skills/"
 ```
 
-The skill supports implicit discovery and can also be invoked explicitly:
+### Claude Code
+
+```bash
+cp -R ses-expert "$HOME/.claude/skills/"
+```
+
+显式调用：
 
 ```text
 $ses-expert
 ```
 
-## Example prompts
+## 交互方式
 
-### Authentication
+Agent 应当：
 
-```text
-Use $ses-expert to diagnose why Outlook returns:
-SPF=Pass, DKIM=Pass, DMARC=Fail, 550 5.7.515.
-```
+1. 先阅读用户提供的截图、日志、退信事件或代码；
+2. 判断问题处于 API、认证、收件地址、信誉、事件链路还是额度层；
+3. 信息不足时只追问一个最关键问题；
+4. 根据现场环境生成最小的只读验证命令；
+5. 解释验证结果并提出可回滚、可复测的修复方案；
+6. 用户需要客户回复时，再输出一段简短口径。
 
-### Bounce analysis
-
-```text
-Use $ses-expert to classify these SES diagnosticCode values into:
-permanent recipient failure, sender configuration, temporary failure,
-and reputation/policy rejection.
-```
-
-### Event publishing
-
-```text
-Use $ses-expert to investigate why Delivery events arrive in SQS
-but Open and Click remain zero.
-```
-
-### Bulk send
-
-```text
-Use $ses-expert to create a staged plan for 800,000 recipients.
-The SES quota is 1,000,000 per rolling 24 hours and 300 recipients/second.
-```
-
-### Reputation recovery
-
-```text
-Use $ses-expert to create a 30-day recovery plan after a cold domain
-sent 800,000 messages and received Gmail 5.7.1 policy blocks.
-```
-
-## DNS preflight script
-
-The included script performs read-only public DNS checks before a campaign.
-
-Requirements:
-
-```text
-bash
-dig
-```
-
-Basic usage:
+示例命令由 Agent 动态生成：
 
 ```bash
-ses-expert/scripts/check_ses_dns.sh \
-  mail.example.com \
-  us-west-2 \
-  ses.mail.example.com
+dig +short MX mail.example.com
+dig +short TXT _dmarc.mail.example.com
+dig +short MX ses.mail.example.com
 ```
-
-Validate SES Easy DKIM selectors as well:
 
 ```bash
-ses-expert/scripts/check_ses_dns.sh \
-  mail.example.com \
-  us-west-2 \
-  ses.mail.example.com \
-  selector1,selector2,selector3
+aws ses get-send-quota --region us-west-2
+aws sesv2 get-email-identity \
+  --email-identity mail.example.com \
+  --region us-west-2
 ```
 
-The script checks:
+如果环境允许，Agent 可以创建临时脚本来批量验证；Skill 本身保持 Markdown-only。
 
-- visible From-domain MX, A/AAAA, TXT, and DMARC;
-- custom MAIL FROM MX and SPF;
-- expected regional SES feedback endpoint;
-- optional DKIM selector CNAME records;
-- the risky case where the visible From domain has neither MX nor A/AAAA.
-
-Exit codes:
-
-- `0`: no critical error found;
-- `1`: one or more required records failed validation;
-- `2`: invalid invocation or missing `dig`.
-
-## Diagnostic model
-
-The skill separates incidents into four root-cause families.
-
-### Recipient failures
-
-Examples:
+## 示例提示词
 
 ```text
-5.1.1 account does not exist
-no such user
-unknown recipient
+Use $ses-expert to diagnose why Outlook returns
+SPF=Pass, DKIM=Pass, DMARC=Fail and 550 5.7.515.
 ```
-
-These should normally be permanently removed or suppressed.
-
-### Sender authentication and DNS failures
-
-Examples:
 
 ```text
-550 5.7.515 DMARC=Fail
-invalid DNS MX or A/AAAA resource record
-non-local sender verification failed
+用 $ses-expert 验证 mail.example.com 的 DKIM、DMARC、
+自定义 MAIL FROM 和接收 MX 是否正确。
 ```
-
-The recipient may still be valid. Fix the sender, verify a small sample, and only then
-consider selective suppression removal.
-
-### Temporary recipient or provider failures
-
-Examples:
 
 ```text
-421 / 451 temporary deferral
-5.2.2 mailbox full
-4.4.7 message expired
+用 $ses-expert 分析这些 diagnosticCode，
+区分无效邮箱、发送方配置、临时错误和信誉拦截。
 ```
-
-These require controlled retry behavior, not permanent deletion.
-
-### Reputation and policy failures
-
-Examples:
 
 ```text
-Gmail 550 5.7.1 unsolicited mail
-GMX/WEB.DE policy restriction
-DNSBL listing
+用 $ses-expert 排查为什么 Delivery 已进入 SQS，
+但 Open 和 Click 一直是0。
 ```
-
-Immediate bulk retry usually makes these worse. Improve audience quality, rate,
-engagement, authentication, and provider-specific reputation first.
-
-## Event-counting guidance
-
-Do not treat raw log hits or SQS receive counts as unique emails.
-
-Potential duplication sources include:
-
-- overlapping diagnostic-code searches;
-- identity feedback and configuration-set event destinations targeting the same topic;
-- Standard SQS at-least-once delivery;
-- multiple delivery attempts.
-
-Prefer a stable business dedupe key based on:
 
 ```text
-mail.messageId + eventType + recipient + event timestamp
+用 $ses-expert 为80万收件人制定分阶段发送计划。
+SES额度为100万/滚动24小时、300封/秒。
 ```
 
-Store the full SMTP status and `diagnosticCode`; generic Bounce badges are insufficient
-for production incident response.
+## 核心原则
 
-## Safety and limitations
+- `Send` 只表示 SES 接受请求。
+- `Delivery` 只表示收件服务器接受，不代表进入收件箱。
+- SPF、DKIM通过但未对齐时，DMARC仍可失败。
+- `550` 不是单一原因，必须读取增强状态码和 `diagnosticCode`。
+- 日志 hits 和 SQS receive 不是唯一邮件数。
+- 发送方 DNS/认证失败不能用于判定收件邮箱无效。
+- 抑制列表只能分类后选择性解除，不能整表清空。
+- SES额度是技术上限，不是新域名的推荐发送速率。
 
-- This skill does not promise inbox placement.
-- `Send` means SES accepted a request; `Delivery` means the receiving infrastructure
-  accepted it.
-- Do not bypass quotas by opening Regions or accounts solely to continue a risky send.
-- Do not bulk-clear an SES suppression list.
-- Do not classify all `550` responses as invalid recipients.
-- Always verify current AWS and mailbox-provider requirements from official sources.
+## 验证
 
-## Validation
-
-Validate the skill structure with the Codex skill-creator validator:
+使用 Codex Skill Creator 的校验器：
 
 ```bash
 python3 quick_validate.py ses-expert
 ```
 
-Validate the shell script:
+还应检查：
 
-```bash
-bash -n ses-expert/scripts/check_ses_dns.sh
-```
+- 文件夹名和 frontmatter 均为 `ses-expert`；
+- 没有 TODO 或脚手架占位符；
+- 官方文档链接仍有效；
+- Agent 会主动生成验证命令，而不是猜测结果；
+- 生产变更前会说明风险并请求授权。
 
-Run a real read-only DNS test before publishing:
+## 可移植性
 
-```bash
-ses-expert/scripts/check_ses_dns.sh \
-  mail.aniimo.com \
-  us-west-2 \
-  ses.mail.aniimo.com
-```
+此 Skill 只依赖 Markdown，不强制要求：
 
-## Source documentation
+- Python 或 Node.js
+- MCP Server
+- 固定 AWS 账号
+- 预装 DNS 脚本
 
-The reference files link to current official AWS and mailbox-provider documentation.
-For changing quotas, sender requirements, feature behavior, and enforcement thresholds,
-the agent should verify the latest official source rather than rely on static numbers.
+有工具时 Agent 可以直接验证；没有工具时，应输出可复制命令并明确哪些事实尚未验证。

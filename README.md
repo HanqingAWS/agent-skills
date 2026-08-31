@@ -20,7 +20,7 @@ Highlights:
 - Configuration sets, identity notifications, SNS/SQS, Open/Click, and event deduplication
 - New-domain warm-up, high-volume send runbooks, and reputation recovery
 - Multi-project, multi-environment, and SES tenant design
-- Read-only DNS preflight script
+- Interactive generation of DNS, AWS CLI, SQL, and log verification commands
 
 See the detailed [ses-expert README](./ses-expert/README.md) for installation, examples, script usage, and validation.
 
