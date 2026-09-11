@@ -24,6 +24,12 @@ Highlights:
 
 See the detailed [ses-expert README](./ses-expert/README.md) for installation, examples, script usage, and validation.
 
+### [cde-project-delivery](./cde-project-delivery)
+Plan, build, govern, validate, and hand off time-bounded Customer Delivery Engagement
+(CDE) prototypes. Covers stakeholder discovery, scope boundaries, measurable PoC
+criteria, sandbox implementation, data/security/IP/cost controls, exact acceptance
+testing, deployment evidence, GitHub delivery, cleanup, and customer continuation.
+
 ## Usage
 
 Copy the skill folder into your agent's skills directory:
