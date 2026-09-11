@@ -1,0 +1,4 @@
+interface:
+  display_name: "CDE Project Delivery"
+  short_description: "Build and validate scoped customer PoCs"
+  default_prompt: "Use $cde-project-delivery to turn this customer request into a scoped, governed, deployable PoC with acceptance evidence and handoff."
